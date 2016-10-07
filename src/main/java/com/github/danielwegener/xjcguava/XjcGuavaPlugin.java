@@ -155,8 +155,13 @@ public class XjcGuavaPlugin extends Plugin {
         final JVar otherTypesafe = content.decl(JMod.FINAL, clazz, "o", JExpr.cast(clazz, other));
         for (JFieldVar field : merge(superClassInstanceFields, thisClassInstanceFields)) {
             final JInvocation equalsInvocation = objects.staticInvoke("deepEquals");
-            equalsInvocation.arg(JExpr._this().ref(field));
-            equalsInvocation.arg(otherTypesafe.ref(field));
+            if (field.type().erasure().boxify().equals(model.ref(java.util.List.class))) { // compare lists as arrays, otherwise equals check on List<byte[]> will not work!
+                equalsInvocation.arg(JExpr.direct(field.name() + " == null ? null : " + field.name() + ".toArray()"));
+                equalsInvocation.arg(JExpr.direct("o." + field.name() + " == null ? null : o." + field.name() + ".toArray()"));
+            } else {
+                equalsInvocation.arg(JExpr._this().ref(field));
+                equalsInvocation.arg(otherTypesafe.ref(field));
+            }
             equalsBuilder = equalsBuilder.cand(equalsInvocation);
         }
         content._return(equalsBuilder);
