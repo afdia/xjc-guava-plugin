@@ -88,38 +88,25 @@ public class XjcGuavaPlugin extends Plugin {
     protected void generateToStringMethod(JCodeModel model, JDefinedClass clazz) {
         final JMethod toStringMethod = clazz.method(JMod.PUBLIC, String.class,"toString");
         toStringMethod.annotate(Override.class);
-        final JClass objects = model.ref("com.google.common.base.Objects");
         final Collection<JFieldVar> superClassInstanceFields = getInstanceFields(getSuperclassFields(clazz));
         final Collection<JFieldVar> thisClassInstanceFields = getInstanceFields(clazz.fields().values());
 
-        final JBlock content = toStringMethod.body();
-
-
-        final JInvocation toStringHelperCall = objects.staticInvoke("toStringHelper");
-        toStringHelperCall.arg(JExpr._this());
-        JInvocation fluentCall = toStringHelperCall;
-
-        for (JFieldVar superField : superClassInstanceFields) {
-            fluentCall = fluentCall.invoke("add");
-            fluentCall.arg(JExpr.lit(superField.name()));
-            fluentCall.arg(superField);
+        StringBuilder sb = new StringBuilder();
+        sb.append("getClass().getSimpleName() + \"{\"");
+        String sep = "";
+        for (JFieldVar field : merge(superClassInstanceFields, thisClassInstanceFields)) {
+            sb.append("+\"" + sep + "" + field.name() + "=\"+" + field.name());
+            sep = ", "; // after the first iteration, place a separator
         }
+        sb.append("+\"}\";");
 
-        for (JFieldVar thisField : thisClassInstanceFields) {
-            fluentCall = fluentCall.invoke("add");
-            fluentCall.arg(JExpr.lit(thisField.name()));
-            fluentCall.arg(thisField);
-        }
-
-        fluentCall = fluentCall.invoke("toString");
-
-        content._return(fluentCall);
+        toStringMethod.body().directStatement("return " + sb);
 
     }
 
     protected void generateHashCodeMethod(JCodeModel model, JDefinedClass clazz) {
 
-        final JClass objects = model.ref(com.google.common.base.Objects.class);
+        final JClass objects = model.ref(java.util.Objects.class);
         final Collection<JFieldVar> thisClassInstanceFields = getInstanceFields(clazz.fields().values());
         final Collection<JFieldVar> superClassInstanceFields = getInstanceFields(getSuperclassFields(clazz));
         // Don't create hashCode for empty classes
@@ -130,15 +117,11 @@ public class XjcGuavaPlugin extends Plugin {
         final JBlock content = hashCodeMethod.body();
         hashCodeMethod.annotate(Override.class);
 
-        final JInvocation hashCodeCall = objects.staticInvoke("hashCode");
+        final JInvocation hashCodeCall = objects.staticInvoke("hash");
 
 
-        for (JFieldVar superField : superClassInstanceFields) {
-            hashCodeCall.arg(superField);
-        }
-
-        for (JFieldVar thisField : thisClassInstanceFields) {
-            hashCodeCall.arg(thisField);
+        for (JFieldVar field : merge(superClassInstanceFields, thisClassInstanceFields)) {
+            hashCodeCall.arg(field);
         }
 
         content._return(hashCodeCall);
@@ -154,8 +137,7 @@ public class XjcGuavaPlugin extends Plugin {
         equalsMethod.annotate(Override.class);
         final JVar other = equalsMethod.param(Object.class,"other");
 
-        final JClass objects = model.ref(com.google.common.base.Objects.class);
-        final JClass arrays = model.ref(java.util.Arrays.class);
+        final JClass objects = model.ref(java.util.Objects.class);
 
         final JBlock content = equalsMethod.body();
 
@@ -171,32 +153,20 @@ public class XjcGuavaPlugin extends Plugin {
         isOtherNotSameClass._then()._return(JExpr.FALSE);
 
         final JVar otherTypesafe = content.decl(JMod.FINAL, clazz, "o", JExpr.cast(clazz, other));
-
-        for (JFieldVar superField : superClassInstanceFields) {
-            final JInvocation equalsInvocation;
-            if (superField.type().isArray()) {
-                equalsInvocation = arrays.staticInvoke("equals");
-            } else {
-                equalsInvocation = objects.staticInvoke("equal");
-            }
-
-            equalsInvocation.arg(JExpr._this().ref(superField));
-            equalsInvocation.arg(otherTypesafe.ref(superField));
-            equalsBuilder = equalsBuilder.cand(equalsInvocation);
-        }
-
-        for (JFieldVar thisField : thisClassInstanceFields) {
-            final JInvocation equalsInvocation;
-            if (thisField.type().isArray()) {
-                equalsInvocation = arrays.staticInvoke("equals");
-            } else {
-                equalsInvocation = objects.staticInvoke("equal");
-            }
-            equalsInvocation.arg(JExpr._this().ref(thisField));
-            equalsInvocation.arg(otherTypesafe.ref(thisField));
+        for (JFieldVar field : merge(superClassInstanceFields, thisClassInstanceFields)) {
+            final JInvocation equalsInvocation = objects.staticInvoke("deepEquals");
+            equalsInvocation.arg(JExpr._this().ref(field));
+            equalsInvocation.arg(otherTypesafe.ref(field));
             equalsBuilder = equalsBuilder.cand(equalsInvocation);
         }
         content._return(equalsBuilder);
+    }
+
+    private <T> Collection<T> merge(Collection<T> col1, Collection<T> col2) {
+        Collection<T> result = new ArrayList<T>();
+        result.addAll(col1);
+        result.addAll(col2);
+        return result;
     }
 
 

@@ -22,7 +22,7 @@
 
     <properties>
         <!--General stuff-->
-        <targetJdk>1.6</targetJdk>
+        <targetJdk>1.7</targetJdk>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -59,11 +59,6 @@
             <artifactId>jaxb-xjc</artifactId>
             <version>2.0</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>13.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -211,8 +206,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.2</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>${targetJdk}</source>
+                    <target>${targetJdk}</target>
                 </configuration>
             </plugin>
             <plugin>
